@@ -1,0 +1,10 @@
+LIBRARY KZPHOOK
+PROTMODE
+STACKSIZE 0x8000
+DATA SINGLE SHARED
+
+EXPORTS installHook
+        uninstallHook
+        patchOpt
+
+
