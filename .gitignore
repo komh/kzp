@@ -1,0 +1,9 @@
+*.bak
+*.o
+*.obj
+*.res
+*.a
+*.lib
+*.dll
+*.exe
+*.map
