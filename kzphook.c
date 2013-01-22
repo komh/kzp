@@ -21,6 +21,12 @@
         Written by KO Myung-Hun
         Term of programming : 2001.05.25 - 2001.06.01
 
+        Modified by KO Myung-Hun
+        Term of programming : 2001.10.09
+
+        Modified contents :
+            Can input Korean chars regardless to keyboard layout.
+
         Source file   : kzphook.c
         Used compiler : emx 0.9d + gcc 2.8.1
 */
@@ -56,6 +62,8 @@ static BOOL isDblJaum( UCHAR uch );
 static BOOL isZtelnet( HWND hwnd );
 static BOOL isKzpProcess( HWND hwnd );
 static UCHAR *findKbdConv( UCHAR uch );
+static USHORT kbdKeyTranslate( PQMSG pQmsg );
+static BOOL isCapsLockOn( VOID );
 
 BOOL EXPENTRY inputHook( HAB hab, PQMSG pQmsg, USHORT fsOptions )
 {
@@ -80,10 +88,12 @@ BOOL EXPENTRY inputHook( HAB hab, PQMSG pQmsg, USHORT fsOptions )
         else if( LONGFROMMR( WinSendMsg( hwndKzp, KZPM_QUERYHAN, 0, 0 ))
                  && ( !( fsFlags & ( KC_CTRL | KC_ALT ))))
         {
-            UCHAR uch = tolower( LOUCHAR( usCh ));
+            UCHAR uch;
             UCHAR *kbdConv;
             BOOL  shiftOn;
 
+            usCh = kbdKeyTranslate( pQmsg );
+            uch = tolower( LOUCHAR( usCh ));
             if( fsFlags & KC_SHIFT )
                 uch = toupper( uch );
             else if( patchOpt.patchChat && prevHanInput &&
@@ -233,5 +243,41 @@ UCHAR *findKbdConv( UCHAR uch )
     return (( kbdConvTable[ i ][ 0 ] == 0 ) ? NULL : &kbdConvTable[ i ][ 0 ]);
 }
 
+
+USHORT kbdKeyTranslate( PQMSG pQmsg )
+{
+    USHORT  fsFlags = SHORT1FROMMP( pQmsg->mp1 );
+    UCHAR   ucRepeat = CHAR3FROMMP( pQmsg->mp1 );
+    UCHAR   ucScancode = CHAR4FROMMP( pQmsg->mp1 );
+    USHORT  usCh = SHORT1FROMMP( pQmsg->mp2 );
+    USHORT  usVk = SHORT2FROMMP( pQmsg->mp2 );
+
+    if( ucScancode < 54 )
+    {
+        BOOL  shiftOn = ( fsFlags & KC_SHIFT ) ? TRUE : FALSE;
+        UCHAR uch = kbdKeyTransTable[ ucScancode ][ shiftOn ];
+
+        if( uch != 0 )
+        {
+            uch = ( shiftOn ^ isCapsLockOn()) ? toupper( uch ) : tolower( uch );
+
+            usCh = MAKEUSHORT( uch, 0 );
+
+            pQmsg->mp1 = MPFROMSH2CH( fsFlags, ucRepeat, ucScancode );
+            pQmsg->mp2 = MPFROM2SHORT( usCh, usVk );
+        }
+    }
+
+    return usCh;
+}
+
+BOOL isCapsLockOn( VOID )
+{
+    BYTE keyState[ 256 ];
+
+    WinSetKeyboardStateTable( HWND_DESKTOP, keyState, FALSE );
+
+    return ( keyState[ VK_CAPSLOCK ] & 0x01 );
+}
 
 
